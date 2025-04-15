@@ -1,0 +1,16 @@
+PODS:
+  - LDownLoadOC (0.1.0)
+
+DEPENDENCIES:
+  - LDownLoadOC (from `../`)
+
+EXTERNAL SOURCES:
+  LDownLoadOC:
+    :path: "../"
+
+SPEC CHECKSUMS:
+  LDownLoadOC: 8fc532a340cf2bf65004514d914b70f5f797040e
+
+PODFILE CHECKSUM: 59f5ebcf5dda4ee5bf75bc4640bea0ed347a0c86
+
+COCOAPODS: 1.16.2
