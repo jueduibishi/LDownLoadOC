@@ -20,9 +20,6 @@ it, simply add the following line to your Podfile:
 pod 'LDownLoadOC'
 ```
 
-## Author
-
-jueduibishi, 171013526@qq.com
 
 ## License
 
