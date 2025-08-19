@@ -14,8 +14,6 @@
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
 {
     // Override point for customization after application launch.
-    LTaskManager *manager = [LTaskManager instance];
-    [manager preConfig];
     [UNUserNotificationHelper registerUserNotification];
     return YES;
 }
