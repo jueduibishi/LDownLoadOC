@@ -34,12 +34,13 @@
         for (NSString *url in urlArray) {
             LSession *session = [[LSession alloc]initWithUrl:url toPath:@"l"];
             self.sessionDic[url] = session;
-        NSMutableDictionary *downloadDic = [LFile downLoadList];
-        if (downloadDic) {
-            NSArray *urlArray = downloadDic.allKeys;
-            for (NSString *url in urlArray) {
-                LSession *session = [[LSession alloc]initWithUrl:url toPath:@"l"];
-                self.sessionDic[url] = session;
+            NSMutableDictionary *downloadDic = [LFile downLoadList];
+            if (downloadDic) {
+                NSArray *urlArray = downloadDic.allKeys;
+                for (NSString *url in urlArray) {
+                    LSession *session = [[LSession alloc]initWithUrl:url toPath:@"l"];
+                    self.sessionDic[url] = session;
+                }
             }
         }
     }
