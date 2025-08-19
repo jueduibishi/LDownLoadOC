@@ -16,6 +16,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 @property (nonatomic, strong) NSMutableDictionary *sessionDic;
 
+/// 预设置，app启动时运行
+-(void)preConfig;
 
 /// 开始下载
 /// - Parameters:

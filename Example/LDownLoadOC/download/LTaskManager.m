@@ -24,6 +24,16 @@
 -(NSMutableDictionary*)sessionDic{
     if (!_sessionDic) {
         _sessionDic = [NSMutableDictionary dictionary];
+    }
+    return _sessionDic;
+}
+-(void)preConfig{
+    NSMutableDictionary *downloadDic = [LFile downLoadList];
+    if (downloadDic) {
+        NSArray *urlArray = downloadDic.allKeys;
+        for (NSString *url in urlArray) {
+            LSession *session = [[LSession alloc]initWithUrl:url toPath:@"l"];
+            self.sessionDic[url] = session;
         NSMutableDictionary *downloadDic = [LFile downLoadList];
         if (downloadDic) {
             NSArray *urlArray = downloadDic.allKeys;
@@ -33,7 +43,6 @@
             }
         }
     }
-    return _sessionDic;
 }
 #pragma mark -
 #pragma mark -下载
