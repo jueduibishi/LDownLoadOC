@@ -7,14 +7,19 @@
 //
 
 #import "LSession.h"
+#import <CommonCrypto/CommonCrypto.h>
+#import <sys/xattr.h>
 #import "ResumedataFile.h"
-#import "LFile.h"
+
+
+#define directoryPlist @"directoryPlist" //保存每个文件的下载位置
 
 @interface LSession () <NSURLSessionDownloadDelegate>
 @property (nonatomic, strong) NSURLSession *downLoadSession;
-@property (nonatomic, strong) NSMutableDictionary *codeUrlDic;//文件名加密 //[String:String]
+@property (nonatomic, strong) NSURLSessionDownloadTask *downLoadTask;
+@property (nonatomic, copy) NSString *url;//下载链接
+@property (nonatomic, copy) NSString *path;//下载目录
 
-@property (nonatomic, strong) NSMutableDictionary *taskDic; //[String:NSURLSessionDownloadTask]
 @property (nonatomic, strong) NSMutableDictionary *recevTimeDic;//接受数据的时间点，用来计算速度 //[String:NSTimeInterval]
 @property (nonatomic, strong) NSMutableDictionary *recevDataLengthDic;//接受数据的大小，用来计算速度 //[String:long long]
 
@@ -23,66 +28,54 @@
 @end
 @implementation LSession
 
-+ (instancetype)instance{
-    static LSession *instance;
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        instance = [[LSession alloc] init];
-    });
-    return instance;
+/// 初始化，默认30秒超时
+/// - Parameters:
+///   - downLoadUrl: 下载地址
+///   - finalPath: 文件目录
+- (instancetype)initWithUrl:(NSString*)downLoadUrl
+                     toPath:(NSString*)finalPath{
+    return [self initWithUrl:downLoadUrl toPath:finalPath timeout:30];
 }
-- (instancetype)init
+/// 初始化
+/// - Parameters:
+///   - downLoadUrl: 下载地址
+///   - finalPath: 文件目录
+///   - timeout: 超时
+- (instancetype)initWithUrl:(NSString*)downLoadUrl
+                     toPath:(NSString*)finalPath
+                    timeout:(NSTimeInterval)timeout
 {
     self = [super init];
     if (self) {
-        NSString *identifier = [NSBundle mainBundle].bundleIdentifier;
-        NSURLSessionConfiguration* sessionConfig = [NSURLSessionConfiguration backgroundSessionConfigurationWithIdentifier:identifier];
-        self.identifier = identifier;
+        self.url = downLoadUrl;
+        self.path = finalPath;
+        NSString *url256 = [LFile SHA256Encode:downLoadUrl];
+        //bundleid+url256编码作为sessionID
+        self.identifier = [[NSString alloc]initWithFormat:@"%@%@",[NSBundle mainBundle].bundleIdentifier,url256];
+        NSURLSessionConfiguration* sessionConfig = [NSURLSessionConfiguration backgroundSessionConfigurationWithIdentifier:self.identifier];
         sessionConfig.allowsCellularAccess = YES;//是否允许蜂窝网络
         sessionConfig.sessionSendsLaunchEvents = YES;//允许中后台唤醒
-        sessionConfig.timeoutIntervalForRequest = 30;
+        sessionConfig.timeoutIntervalForRequest = timeout;
         self.downLoadSession = [NSURLSession sessionWithConfiguration:sessionConfig
                                                 delegate:self
                                            delegateQueue:[NSOperationQueue mainQueue]];
         //启动时获取下载任务——因为didCompleteWithError有时候不会执行
         [self.downLoadSession getTasksWithCompletionHandler:^(NSArray<NSURLSessionDataTask *> * _Nonnull dataTasks, NSArray<NSURLSessionUploadTask *> * _Nonnull uploadTasks, NSArray<NSURLSessionDownloadTask *> * _Nonnull downloadTasks) {
             for (NSURLSessionDownloadTask *downloadTask in downloadTasks) {
-                [self saveLownloadTask:downloadTask];
                 //不自动下载
                 [downloadTask cancelByProducingResumeData:^(NSData * _Nullable resumeData) {
                                     
                 }];
             }
-            NSLog(@"----l----当前有%ld个任务",downloadTasks.count);
+            NSLog(@"----l----已存在%ld个未下载完成的任务",downloadTasks.count);
         }];
     }
     return self;
 }
+
 #pragma mark -
 #pragma mark - data
 
-/// 设置超时
-/// - Parameter timeout: 超时
--(void)setTimeout:(CGFloat)timeout{
-    _timeout = timeout;
-    if (self.downLoadSession) {
-        self.downLoadSession.configuration.timeoutIntervalForRequest = timeout;
-    }
-}
-
-/// 读取本地未完成的resumeData组成taskDic
--(NSMutableDictionary *)taskDic{
-    if (!_taskDic) {
-        _taskDic = [NSMutableDictionary dictionary];
-    }
-    return _taskDic;
-}
--(NSMutableDictionary *)codeUrlDic{
-    if (!_codeUrlDic) {
-        _codeUrlDic = [NSMutableDictionary dictionary];
-    }
-    return _codeUrlDic;
-}
 -(NSMutableDictionary *)recevTimeDic{
     if (!_recevTimeDic) {
         _recevTimeDic = [NSMutableDictionary dictionary];
@@ -95,93 +88,56 @@
     }
     return _recevDataLengthDic;
 }
-#pragma mark -
-#pragma mark -数据处理
 
-/// sha256加密
-/// - Parameter url: url
--(NSString*)codeUrl:(NSString*)url{
-    NSString *urlCode = self.codeUrlDic[url];
-    if (!urlCode) {
-        urlCode = [ResumedataFile fileName:url];
-        self.codeUrlDic[url] = urlCode;
-    }
-    return urlCode;
-}
-
-/// 保存下载任务
-/// - Parameter task: task
--(void)saveLownloadTask:(NSURLSessionDownloadTask*)task{
-    NSString *url = task.originalRequest.URL.absoluteString;
-    NSString *codeUrl = [self codeUrl:url];
-    self.taskDic[codeUrl] = task;
-}
 #pragma mark -
 #pragma mark - 下载等
 
-- (void)startDownload:(NSString *)url
-            directory:(nullable NSString *)directory{
-    if ([LFile isExistFileWithUrl:url]) {
+
+- (void)startTask{
+    if ([LFile isExistFileWithPath:self.path]) {
         if (self.successBlock) {
             //已下载
-            self.successBlock(url);
+            self.successBlock();
         }
     }else{
-        //url加密的string
-        NSString *resumeName = [self codeUrl:url];
-        //保存下载目录
-        [LFile setDirectory:directory url:url];
-        NSURLSessionDownloadTask *task = self.taskDic[resumeName];
-        if (task) {
-            //已存在，继续下载
-            NSLog(@"-----l-----继续下载");
-            [task resume];
+        NSData *resumeData =[ResumedataFile resumeData:self.url];
+        if (resumeData) {
+            self.downLoadTask = [self.downLoadSession downloadTaskWithResumeData:resumeData];
+            NSLog(@"-----l-----继续下载,%@",self.url);
+            [self.downLoadTask resume];
         }else{
             //新增下载
-            NSURLRequest *request = [NSURLRequest requestWithURL:[NSURL URLWithString:url]];
-            NSURLSessionDownloadTask *task = [self.downLoadSession downloadTaskWithRequest:request];
-            self.taskDic[resumeName] = task;
-            [task resume];
-            NSLog(@"-----l-----开始下载");
+            NSURLRequest *request = [NSURLRequest requestWithURL:[NSURL URLWithString:self.url]];
+            self.downLoadTask = [self.downLoadSession downloadTaskWithRequest:request];
+            [self.downLoadTask resume];
+            NSLog(@"-----l-----开始下载,%@",self.url);
         }
     }
     
-    
-}
-- (void)continueDownload:(NSString *)url{
-    NSString *resumeName = [self codeUrl:url];
-    NSURLSessionDownloadTask *task = self.taskDic[resumeName];
-    if (task) {
-        //继续下载
-        [task resume];
-    }
 }
 
-- (void)deleteDownload:(NSString *)url{
-    NSString *resumeName = [self codeUrl:url];
-    NSURLSessionDownloadTask *task = self.taskDic[resumeName];
-    if (task) {
+- (void)deleteTask{
+    if (self.downLoadTask) {
         //移除任务
-        [task cancel];
-        task = nil;
+        [self.downLoadTask cancel];
+        self.downLoadTask = nil;
     }
     //删除resumeData
-    [ResumedataFile deleteResumeDataWithUrl:url];
-    //移除列表
-    [self.taskDic removeObjectForKey:resumeName];
-    //删除已保存的路径
-    [LFile deleteDirectory:url];
+    [ResumedataFile deleteResumeDataWithUrl:self.url];
+    NSString *resumeName = [LFile SHA256Encode:self.url];
     //移除下载进度
     [self.recevTimeDic removeObjectForKey:resumeName];
     [self.recevDataLengthDic removeObjectForKey:resumeName];
+    //移除下载记录
+    [LFile deleteDownLoadSession:self.url];
+    //移除文件
+    [LFile deleteFileWithPath:self.path];
 }
 
-- (void)pauseDownload:(NSString *)url{
-    NSString *resumeName = [self codeUrl:url];
-    NSURLSessionDownloadTask *task = self.taskDic[resumeName];
-    if (task) {
+- (void)pauseTask{
+    if (self.downLoadTask) {
         //暂停，会触发NSURLSessionDownloadDelegate
-        [task cancelByProducingResumeData:^(NSData * _Nullable resumeData) {
+        [self.downLoadTask cancelByProducingResumeData:^(NSData * _Nullable resumeData) {
                     
         }];
     }
@@ -197,15 +153,26 @@ didFinishDownloadingToURL:(NSURL *)location {
     NSString *locationPath = [location path];
     //获取当前下载的url
     NSString *url = downloadTask.currentRequest.URL.absoluteString;
-    NSString *finalPath = [LFile filePathWithUrl:url];
     NSError *error;
     //移动文件到下载文件夹
-    [[NSFileManager defaultManager] moveItemAtPath:locationPath toPath:finalPath error:&error];
-    NSLog(@"-----l-----下载完成%@",finalPath);
+    //关闭iCloud备份
+//    [PublicAction addSkipBackupAttributeToItemAtURL:finalPath];
+    [[NSFileManager defaultManager] moveItemAtPath:locationPath toPath:self.path error:&error];
     
-    if (self.successBlock) {
-        self.successBlock(url);
+    if (error == nil) {
+        
+            if (self.successBlock) {
+                self.successBlock(url);
+            }
+
+    }else{
+//        NSLog(@"-----l-----下载错误%@",error);
+        if (self.failBlock) {
+            self.failBlock();//移动失败
+        }
     }
+    
+    
     
 }
 //断点续传，从fileOffset开始
@@ -232,11 +199,11 @@ totalBytesExpectedToWrite:(int64_t)totalBytesExpectedToWrite {
     NSString *url = downloadTask.originalRequest.URL.absoluteString;
     if (self.progressBlock && totalBytesExpectedToWrite != 0) {
         CGFloat progress = (CGFloat)totalBytesWritten / (CGFloat) totalBytesExpectedToWrite;
-        self.progressBlock(url, totalBytesWritten, totalBytesExpectedToWrite,progress);
+        self.progressBlock(totalBytesWritten, totalBytesExpectedToWrite,progress);
     }
     if (self.speedBlock) {
         //url加密
-        NSString *resumeName = [self codeUrl:url];
+        NSString *resumeName = [LFile SHA256Encode:url];
         if ([self.recevTimeDic[resumeName] doubleValue] == 0) {
             self.recevTimeDic[resumeName] = [[NSString alloc]initWithFormat:@"%f",[[NSDate date] timeIntervalSince1970]];;
             self.recevDataLengthDic[resumeName] = [[NSString alloc]initWithFormat:@"%lld", totalBytesWritten];
@@ -250,7 +217,7 @@ totalBytesExpectedToWrite:(int64_t)totalBytesExpectedToWrite {
             if (speed<1) {
                 speedStr = [NSString stringWithFormat:@"%.2fK/S",(datasended*1000/1024.0) / time];
             }
-            self.speedBlock(url, speedStr);
+            self.speedBlock(speedStr);
             self.recevTimeDic[resumeName] = [[NSString alloc]initWithFormat:@"%f",[[NSDate date] timeIntervalSince1970]];
             self.recevDataLengthDic[resumeName] = [[NSString alloc]initWithFormat:@"%lld", totalBytesWritten];
         }
@@ -273,7 +240,7 @@ didCompleteWithError:(NSError *)error {
         if ([error.userInfo objectForKey:NSURLSessionDownloadTaskResumeData]) {
             
             NSString *url = task.originalRequest.URL.absoluteString;
-            NSString *resumeName = [self codeUrl:url];
+            NSString *resumeName = [LFile SHA256Encode:url];
             //暂停，时间清空
             self.recevTimeDic[resumeName]=0;
             
@@ -281,14 +248,11 @@ didCompleteWithError:(NSError *)error {
             //通过之前保存的resumeData，获取断点的NSURLSessionTask，调用resume恢复下载
             if (resumeData) {
                 dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-                    
                     [ResumedataFile saveResumeData:resumeData withUrl:url];
-                    NSURLSessionDownloadTask *downLoadTask = [self.downLoadSession downloadTaskWithResumeData:resumeData];
-                    [self saveLownloadTask:downLoadTask];
-                    if (self.failureBlock) {
+                    if (self.failBlock) {
                         //下载失败或者任务取消
                         NSLog(@"-----l-----任务暂停");
-                        self.failureBlock(url);
+                        self.failBlock(url,NO);
                     }
                 });
             }
@@ -296,10 +260,9 @@ didCompleteWithError:(NSError *)error {
     } else {
         //下载完成
         NSString *url = task.originalRequest.URL.absoluteString;
-        NSString *resumeName = [self codeUrl:url];
-        [self.recevTimeDic removeObjectForKey:resumeName];
-        [self.recevDataLengthDic removeObjectForKey:resumeName];
-        [self.taskDic removeObjectForKey:resumeName];
+        NSString *codeName = [LFile SHA256Encode:url];
+        [self.recevTimeDic removeObjectForKey:codeName];
+        [self.recevDataLengthDic removeObjectForKey:codeName];
         [ResumedataFile deleteResumeDataWithUrl:task.originalRequest.URL.absoluteString];
     }
 }
@@ -318,8 +281,15 @@ didCompleteWithError:(NSError *)error {
 }
 
 -(void)dealloc{
-    [self.downLoadSession invalidateAndCancel];
-    self.downLoadSession = nil;
-    [self.taskDic removeAllObjects];
+    if (self.downLoadSession) {
+        [self.downLoadSession invalidateAndCancel];
+        self.downLoadSession = nil;
+    }
+    if (self.downLoadTask) {
+        [self.downLoadTask cancel];
+        self.downLoadTask = nil;
+    }
+    
 }
+
 @end

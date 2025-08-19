@@ -26,8 +26,9 @@
 		B51EF8A0E6F38E3E6E45B74F /* Pods_LDownLoadOC_Example.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8AAAA7857052C461D9C858EE /* Pods_LDownLoadOC_Example.framework */; };
 		EEDD779A2DAE065F00E9ADD2 /* LFile.m in Sources */ = {isa = PBXBuildFile; fileRef = EEDD77942DAE065F00E9ADD2 /* LFile.m */; };
 		EEDD779B2DAE065F00E9ADD2 /* LSession.m in Sources */ = {isa = PBXBuildFile; fileRef = EEDD77962DAE065F00E9ADD2 /* LSession.m */; };
-		EEDD779C2DAE065F00E9ADD2 /* ResumedataFile.m in Sources */ = {isa = PBXBuildFile; fileRef = EEDD77982DAE065F00E9ADD2 /* ResumedataFile.m */; };
 		EEDD77A02DAE067600E9ADD2 /* UNUserNotificationHelper.m in Sources */ = {isa = PBXBuildFile; fileRef = EEDD779E2DAE067600E9ADD2 /* UNUserNotificationHelper.m */; };
+		EEE33D222E52FE28001FCE08 /* LTaskManager.m in Sources */ = {isa = PBXBuildFile; fileRef = EEE33D212E52FE28001FCE08 /* LTaskManager.m */; };
+		EEE33D252E53255D001FCE08 /* ResumedataFile.m in Sources */ = {isa = PBXBuildFile; fileRef = EEE33D242E53255D001FCE08 /* ResumedataFile.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -74,10 +75,12 @@
 		EEDD77942DAE065F00E9ADD2 /* LFile.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = LFile.m; sourceTree = "<group>"; };
 		EEDD77952DAE065F00E9ADD2 /* LSession.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LSession.h; sourceTree = "<group>"; };
 		EEDD77962DAE065F00E9ADD2 /* LSession.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = LSession.m; sourceTree = "<group>"; };
-		EEDD77972DAE065F00E9ADD2 /* ResumedataFile.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ResumedataFile.h; sourceTree = "<group>"; };
-		EEDD77982DAE065F00E9ADD2 /* ResumedataFile.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ResumedataFile.m; sourceTree = "<group>"; };
 		EEDD779D2DAE067600E9ADD2 /* UNUserNotificationHelper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = UNUserNotificationHelper.h; sourceTree = "<group>"; };
 		EEDD779E2DAE067600E9ADD2 /* UNUserNotificationHelper.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = UNUserNotificationHelper.m; sourceTree = "<group>"; };
+		EEE33D202E52FE28001FCE08 /* LTaskManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LTaskManager.h; sourceTree = "<group>"; };
+		EEE33D212E52FE28001FCE08 /* LTaskManager.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = LTaskManager.m; sourceTree = "<group>"; };
+		EEE33D232E53255D001FCE08 /* ResumedataFile.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ResumedataFile.h; sourceTree = "<group>"; };
+		EEE33D242E53255D001FCE08 /* ResumedataFile.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ResumedataFile.m; sourceTree = "<group>"; };
 		FF4A3D026F9654188F71DDF8 /* Pods-LDownLoadOC_Example.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-LDownLoadOC_Example.debug.xcconfig"; path = "Target Support Files/Pods-LDownLoadOC_Example/Pods-LDownLoadOC_Example.debug.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -217,8 +220,10 @@
 				EEDD77942DAE065F00E9ADD2 /* LFile.m */,
 				EEDD77952DAE065F00E9ADD2 /* LSession.h */,
 				EEDD77962DAE065F00E9ADD2 /* LSession.m */,
-				EEDD77972DAE065F00E9ADD2 /* ResumedataFile.h */,
-				EEDD77982DAE065F00E9ADD2 /* ResumedataFile.m */,
+				EEE33D202E52FE28001FCE08 /* LTaskManager.h */,
+				EEE33D212E52FE28001FCE08 /* LTaskManager.m */,
+				EEE33D232E53255D001FCE08 /* ResumedataFile.h */,
+				EEE33D242E53255D001FCE08 /* ResumedataFile.m */,
 			);
 			path = download;
 			sourceTree = "<group>";
@@ -401,11 +406,12 @@
 			buildActionMask = 2147483647;
 			files = (
 				6003F59E195388D20070C39A /* LAppDelegate.m in Sources */,
+				EEE33D222E52FE28001FCE08 /* LTaskManager.m in Sources */,
 				EEDD77A02DAE067600E9ADD2 /* UNUserNotificationHelper.m in Sources */,
 				EEDD779A2DAE065F00E9ADD2 /* LFile.m in Sources */,
 				EEDD779B2DAE065F00E9ADD2 /* LSession.m in Sources */,
-				EEDD779C2DAE065F00E9ADD2 /* ResumedataFile.m in Sources */,
 				6003F5A7195388D20070C39A /* LViewController.m in Sources */,
+				EEE33D252E53255D001FCE08 /* ResumedataFile.m in Sources */,
 				6003F59A195388D20070C39A /* main.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

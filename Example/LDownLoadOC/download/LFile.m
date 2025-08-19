@@ -10,14 +10,16 @@
 #import <UIKit/UIKit.h>
 #import <sys/xattr.h>
 
-#define mainPathName @"LdownLoad" //默认下载目录
-#define directoryPlist @"directoryPlist" //保存每个文件的下载位置
+#define downLoadDirectory @"downLoadDirectory" //默认下载目录
+#define LdownLoadPlist @"LdownLoadPlist" //保存每个文件的下载位置
 @implementation LFile
 
 
-+ (NSString *)mainCategory:(nullable NSString *)dir{
+/// 下载目录
+/// - Parameter dir: document+"name"  name默认=downLoadDirectory
++ (NSString *)mainDownCategory:(nullable NSString *)dir{
     NSString *doc = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
-    NSString *path = [doc stringByAppendingPathComponent:dir?dir:mainPathName];
+    NSString *path = [doc stringByAppendingPathComponent:dir?dir:downLoadDirectory];
     if (![[NSFileManager defaultManager] fileExistsAtPath:path]) {
         [[NSFileManager defaultManager] createDirectoryAtPath:path withIntermediateDirectories:YES attributes:nil error:nil];
     }
@@ -26,12 +28,12 @@
     return path;
 }
 
-+ (NSString *)filePathWithUrl:(NSString *)url{
++ (nullable NSString *)filePathWithUrl:(NSString *)url
+                             directory:(NSString*)directory{
     //防止名称重复，url sha256加密+文件名=最终文件名
     NSString *shaStr = [self SHA256Encode:url];
     NSString *fileName = [NSString stringWithFormat:@"%@.%@",shaStr,[NSURL fileURLWithPath:url].lastPathComponent];
-    NSString *dir = [self directory:url];
-    NSString *mainPath = [self mainCategory:dir];
+    NSString *mainPath = [self mainDownCategory:directory];
     NSString *fullPath = [mainPath stringByAppendingPathComponent:fileName];
 #if DEBUG
     NSLog(@"文件路径:%@",fullPath);
@@ -39,57 +41,42 @@
     return fullPath;
 }
 
-+ (BOOL)deleteFileWithUrl:(NSString *)url{
++ (BOOL)deleteFileWithPath:(NSString*)path{
     NSFileManager *fileManager = [NSFileManager defaultManager];
-    NSString *path = [self filePathWithUrl:url];
     if ([fileManager fileExistsAtPath:path]) {
         BOOL result = [fileManager removeItemAtPath:path error:nil];
-        if (result) {
-            [self deleteDirectory:url];
-        }
         return result;
     }
     return NO;
 }
 
-
-+ (BOOL)isExistFileWithUrl:(NSString *)url{
-    return [[NSFileManager defaultManager] fileExistsAtPath:[self filePathWithUrl:url]];
++ (BOOL)isExistFileWithPath:(NSString *)fullPath{
+    return [[NSFileManager defaultManager] fileExistsAtPath:fullPath];
 }
 #pragma mark -
 #pragma mark - 下载目录统一管理
 
-/// 获取下载的目录
-/// - Parameter url: url
-+(NSString*)directory:(NSString*)url{
-    NSMutableDictionary *dic = [self plistdatawithFilename:directoryPlist];
-    NSString *dir = dic [[self SHA256Encode:url]];
-    if (dir) {
-        return dir;
-    }
-    return mainPathName;
-}
-
-/// 设置下载的目录
-/// - Parameters:
-///   - dir: 名称，nil则为LdownLoad
-///   - url: url
-+(void)setDirectory:(nullable NSString*)dir
-                url:(NSString *)url{
-    NSMutableDictionary *dic = [self plistdatawithFilename:directoryPlist];
-    if (!dir) {
-        dir = mainPathName;
-    }
++(void)saveDownLoad:(NSString*)url
+               path:(NSString*)path{
+    NSMutableDictionary *dic = [self plistdatawithFilename:LdownLoadPlist];
     if (!dic) {
         dic = [NSMutableDictionary dictionary];
     }
-    dic[[self SHA256Encode:url]]=dir;
-    [self saveToplist:dic filename:directoryPlist];
+    dic[[self SHA256Encode:url]]=path;
+    [self saveToplist:dic filename:LdownLoadPlist];
 }
-+(void)deleteDirectory:(NSString *)url{
-    NSMutableDictionary *dic = [self plistdatawithFilename:directoryPlist];
-    [dic removeObjectForKey:[self SHA256Encode:url]];
-    [self saveToplist:dic filename:directoryPlist];
+
+
+/// 获取下载列表
++(nullable NSMutableDictionary*)downLoadList{
+    return [self plistdatawithFilename:LdownLoadPlist];
+}
++(void)deleteDownLoadSession:(NSString *)url{
+    NSMutableDictionary *dic = [self plistdatawithFilename:LdownLoadPlist];
+    if (dic) {
+        [dic removeObjectForKey:[self SHA256Encode:url]];
+        [self saveToplist:dic filename:LdownLoadPlist];
+    }
 }
 #pragma mark -
 #pragma mark -加密
@@ -133,7 +120,7 @@
     return result == 0;
 }
 //读取
-+ (NSMutableDictionary*)plistdatawithFilename:(NSString*)filename
++(nullable NSMutableDictionary*)plistdatawithFilename:(NSString*)filename
 {
     NSFileManager* fileManager = [NSFileManager defaultManager];
     //    NSError *error;
@@ -150,9 +137,8 @@
         
         NSDictionary *dic=[NSDictionary dictionaryWithContentsOfFile:appFile];
         return [[NSMutableDictionary alloc]initWithDictionary:dic];
-    }else{
-        return nil;
     }
+    return nil;
 }
 //保存
 + (BOOL)saveToplist:(NSMutableDictionary*)t_dic

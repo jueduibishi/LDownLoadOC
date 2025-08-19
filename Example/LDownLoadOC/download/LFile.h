@@ -15,34 +15,48 @@ NS_ASSUME_NONNULL_BEGIN
 /// 根据url获取文件路径
 /// - Parameters:
 ///   - url: 下载url
-+ (NSString *)filePathWithUrl:(NSString *)url;
+///   - directory: 文件夹名称-内部自动拼接全路径-放在document下
++ (nullable NSString *)filePathWithUrl:(NSString *)url
+                             directory:(NSString*)directory;
 
 
 /// 删除文件
 /// - Parameters:
-///   - url: 下载url
-+ (BOOL)deleteFileWithUrl:(NSString *)url;
+///   - path: 文件全路径
++ (BOOL)deleteFileWithPath:(NSString*)path;
 
 
 
 /// 是否存在文件
 /// - Parameters:
-///   - url: 下载url
-+ (BOOL)isExistFileWithUrl:(NSString *)url;
+///   - fullPath: 文件路径
++ (BOOL)isExistFileWithPath:(NSString *)fullPath;
 #pragma mark -
-#pragma mark - 下载目录统一管理
+#pragma mark - 下载信息
 
 
-/// 设置下载的目录
+/// 保存下载信息
 /// - Parameters:
-///   - dir: 名称，nil则为LdownLoad
 ///   - url: url
-+(void)setDirectory:(nullable NSString*)dir
-          url:(NSString *)url;
+///   - - path: 文件全路径
++(void)saveDownLoad:(NSString*)url
+               path:(NSString*)path;
+
+
+/// 获取下载列表
++(nullable NSMutableDictionary*)downLoadList;
+
 
 /// 删除下载目录条目
 /// - Parameter url: url
-+(void)deleteDirectory:(NSString *)url;
++(void)deleteDownLoadSession:(NSString *)url;
+
+#pragma mark -
+#pragma mark - 加密
+
+/// sha256加密
+/// - Parameter string: string
++ (NSString *)SHA256Encode:(NSString *)string;
 
 @end
 

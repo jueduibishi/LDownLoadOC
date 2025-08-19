@@ -9,6 +9,7 @@
 #import <CommonCrypto/CommonCrypto.h>
 #import <UIKit/UIKit.h>
 #import <sys/xattr.h>
+#import "LFile.h"
 
 #define resumePathName @"LResumedata"
 @implementation ResumedataFile
@@ -30,15 +31,10 @@
 /// - Parameter url: url
 +(NSString*)pathWithUrl:(NSString*)url{
     //url sha256加密
-    NSString *shaStr = [self fileName:url];
+    NSString *shaStr = [LFile SHA256Encode:url];
     NSString *mainPath = [self mainCategory];
     NSString *fullPath = [mainPath stringByAppendingPathComponent:shaStr];
     return fullPath;
-}
-/// 获取加密后的文件名
-/// - Parameter url: url
-+(NSString*)fileName:(NSString *)url{
-    return [self SHA256Encode:url];
 }
 
 
@@ -61,21 +57,13 @@
     [resumeData writeToFile:[self pathWithUrl:url] atomically:YES];
 }
 
-#pragma mark -
-#pragma mark -加密
-+ (NSString *)SHA256Encode:(NSString *)string;
-{
-    NSData *data = [string dataUsingEncoding:NSUTF8StringEncoding];
-    if (!data) {
-        return string; // 编码失败
++(nullable NSData*)resumeData:(NSString*)url{
+    NSFileManager *fileManager = [NSFileManager defaultManager];
+    NSString *path = [self pathWithUrl:url];
+    if ([fileManager fileExistsAtPath:path]){
+        return [[NSData alloc]initWithContentsOfURL:[NSURL fileURLWithPath:path]];
     }
-    unsigned char hash[CC_SHA256_DIGEST_LENGTH];
-    CC_SHA256(data.bytes, (CC_LONG)data.length, hash);
-    NSMutableString *output = [NSMutableString stringWithCapacity:CC_SHA256_DIGEST_LENGTH * 2];
-    for (int i = 0; i < CC_SHA256_DIGEST_LENGTH; i++) {
-        [output appendFormat:@"%02x", hash[i]];
-    }
-    return [output copy];
+    return nil;
 }
 
 @end

@@ -13,9 +13,6 @@ NS_ASSUME_NONNULL_BEGIN
 /// resumeData管理
 @interface ResumedataFile : NSObject
 
-/// 主目录
-+ (NSString *)mainCategory;
-
 
 /// 删除resumeData
 /// - Parameter url: url
@@ -29,9 +26,10 @@ NS_ASSUME_NONNULL_BEGIN
 + (void)saveResumeData:(NSData *)resumeData withUrl:(NSString *)url;
 
 
-/// 获取加密后的文件名
+/// 断点缓存
 /// - Parameter url: url
-+(NSString*)fileName:(NSString *)url;
++(nullable NSData*)resumeData:(NSString*)url;
+
 @end
 
 NS_ASSUME_NONNULL_END

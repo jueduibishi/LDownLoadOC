@@ -7,15 +7,15 @@
 //
 
 #import "LAppDelegate.h"
-#import "LSession.h"
+#import "LTaskManager.h"
 #import "UNUserNotificationHelper.h"
 @implementation LAppDelegate
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
 {
     // Override point for customization after application launch.
-    LSession *session = LSession.instance;
-    session.timeout = 30;
+    LTaskManager *manager = [LTaskManager instance];
+    [manager preConfig];
     [UNUserNotificationHelper registerUserNotification];
     return YES;
 }
@@ -47,8 +47,12 @@
     // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
 }
 - (void)application:(UIApplication *)application handleEventsForBackgroundURLSession:(NSString *)identifier completionHandler:(void (^)(void))completionHandler{
-    if ([LSession.instance.identifier isEqualToString:identifier]) {
-        LSession.instance.backgroundCompletionBlock  = completionHandler;
+    LTaskManager *manager = [LTaskManager instance];
+    NSArray *sessions = manager.sessionDic.allValues;
+    for (LSession *session in sessions) {
+        if ([session.identifier isEqualToString:identifier]) {
+            session.backgroundCompletionBlock = completionHandler;
+        }
     }
 }
 

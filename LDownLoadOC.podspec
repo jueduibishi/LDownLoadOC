@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'LDownLoadOC'
-  s.version          = '0.1.0'
+  s.version          = '0.1.1'
   s.summary          = '基于NSURLSessionDownloadTask的断点续传，支持后台下载。'
 
 # This description is used to generate tags and improve search results.
