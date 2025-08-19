@@ -51,20 +51,18 @@
     
     if (!session) {
         session = [[LSession alloc]initWithUrl:url toPath:path];
-        session.progressBlock = ^(int64_t receiveByte, int64_t allByte, CGFloat progress) {
-            progressBlock(receiveByte,allByte,progress);
-        };
-        session.successBlock = ^{
-            successBlock();
-        };
-        session.failBlock = ^{
-            failBlock();
-        };
-        [session startTask];
         self.sessionDic[url]=session;
-    }else{
-        [session startTask];
     }
+    session.progressBlock = ^(int64_t receiveByte, int64_t allByte, CGFloat progress) {
+        progressBlock(receiveByte,allByte,progress);
+    };
+    session.successBlock = ^{
+        successBlock();
+    };
+    session.failBlock = ^{
+        failBlock();
+    };
+    [session startTask];
 }
 
 

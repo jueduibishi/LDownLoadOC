@@ -54,7 +54,7 @@
     return [[NSFileManager defaultManager] fileExistsAtPath:fullPath];
 }
 #pragma mark -
-#pragma mark - 下载目录统一管理
+#pragma mark - 下载信息
 
 +(void)saveDownLoad:(NSString*)url
                path:(NSString*)path{

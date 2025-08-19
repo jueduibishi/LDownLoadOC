@@ -111,6 +111,7 @@
             self.downLoadTask = [self.downLoadSession downloadTaskWithRequest:request];
             [self.downLoadTask resume];
             NSLog(@"-----l-----开始下载,%@",self.url);
+            [LFile saveDownLoad:self.url path:self.path];
         }
     }
     
