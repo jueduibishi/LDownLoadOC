@@ -176,13 +176,6 @@ didFinishDownloadingToURL:(NSURL *)location {
     
     
 }
-//断点续传，从fileOffset开始
-- (void)URLSession:(NSURLSession *)session
-      downloadTask:(NSURLSessionDownloadTask *)downloadTask
- didResumeAtOffset:(int64_t)fileOffset
-expectedTotalBytes:(int64_t)expectedTotalBytes {
-    
-}
 
 /// 进度等
 /// - Parameters:

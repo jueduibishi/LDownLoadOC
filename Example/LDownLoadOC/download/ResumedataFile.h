@@ -10,7 +10,7 @@
 NS_ASSUME_NONNULL_BEGIN
 
 
-/// resumeData管理
+/// resumeData管理，用于断点续传
 @interface ResumedataFile : NSObject
 
 
