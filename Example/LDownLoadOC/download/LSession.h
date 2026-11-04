@@ -13,8 +13,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 typedef void (^ProgressHandler)(int64_t receiveByte, int64_t allByte,CGFloat progress);
 typedef void (^SpeedHandler)(NSString *speed);
-typedef void (^SucHandler)();
-typedef void (^FailHandler)();
+typedef void (^SucHandler)(void);
+typedef void (^FailHandler)(void);
 
 /// 下载Session
 @interface LSession : NSObject

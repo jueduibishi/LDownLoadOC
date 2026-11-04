@@ -59,13 +59,9 @@
 //iOS10新增：处理前台收到通知的代理方法
 - (void)userNotificationCenter:(UNUserNotificationCenter*)center willPresentNotification:(UNNotification*)notification withCompletionHandler:(void (^)(UNNotificationPresentationOptions))completionHandler
 {
-    if (@available(iOS 17, *)) {
-        [[UNUserNotificationCenter currentNotificationCenter] setBadgeCount:0 withCompletionHandler:^(NSError * _Nullable error) {
-                
-        }];
-    } else {
-        [UIApplication sharedApplication].applicationIconBadgeNumber = 0;
-    }
+    [[UNUserNotificationCenter currentNotificationCenter] setBadgeCount:0 withCompletionHandler:^(NSError * _Nullable error) {
+            
+    }];
     
     NSLog(@"前台收到本地通知");
 }
@@ -73,13 +69,9 @@
 //iOS10新增：处理后台点击通知的代理方法-从通知中心进才有效
 - (void)userNotificationCenter:(UNUserNotificationCenter*)center didReceiveNotificationResponse:(UNNotificationResponse*)response withCompletionHandler:(void (^)(void))completionHandler{
     
-    if (@available(iOS 17, *)) {
-        [[UNUserNotificationCenter currentNotificationCenter] setBadgeCount:0 withCompletionHandler:^(NSError * _Nullable error) {
-                
-        }];
-    } else {
-        [UIApplication sharedApplication].applicationIconBadgeNumber = 0;
-    }
+    [[UNUserNotificationCenter currentNotificationCenter] setBadgeCount:0 withCompletionHandler:^(NSError * _Nullable error) {
+            
+    }];
     NSLog(@"后台收到本地通知");
     completionHandler();
 }

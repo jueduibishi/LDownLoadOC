@@ -152,8 +152,6 @@
 didFinishDownloadingToURL:(NSURL *)location {
     
     NSString *locationPath = [location path];
-    //获取当前下载的url
-    NSString *url = downloadTask.currentRequest.URL.absoluteString;
     NSError *error;
     //移动文件到下载文件夹
     //关闭iCloud备份
@@ -163,7 +161,7 @@ didFinishDownloadingToURL:(NSURL *)location {
     if (error == nil) {
         
             if (self.successBlock) {
-                self.successBlock(url);
+                self.successBlock();
             }
 
     }else{
@@ -246,7 +244,7 @@ didCompleteWithError:(NSError *)error {
                     if (self.failBlock) {
                         //下载失败或者任务取消
                         NSLog(@"-----l-----任务暂停");
-                        self.failBlock(url,NO);
+                        self.failBlock();
                     }
                 });
             }
