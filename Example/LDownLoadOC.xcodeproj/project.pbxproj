@@ -23,6 +23,7 @@
 		6003F5BC195388D20070C39A /* Tests.m in Sources */ = {isa = PBXBuildFile; fileRef = 6003F5BB195388D20070C39A /* Tests.m */; };
 		B51EF8A0E6F38E3E6E45B74F /* Pods_LDownLoadOC_Example.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8AAAA7857052C461D9C858EE /* Pods_LDownLoadOC_Example.framework */; };
 		EE13BD10309AD94000885D7C /* SceneDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = EE13BD0F309AD94000885D7C /* SceneDelegate.m */; };
+		EE9ED733309DB300005CDC08 /* LDownloadMeta.m in Sources */ = {isa = PBXBuildFile; fileRef = EE9ED732309DB300005CDC08 /* LDownloadMeta.m */; };
 		EEDD779A2DAE065F00E9ADD2 /* LFile.m in Sources */ = {isa = PBXBuildFile; fileRef = EEDD77942DAE065F00E9ADD2 /* LFile.m */; };
 		EEDD779B2DAE065F00E9ADD2 /* LSession.m in Sources */ = {isa = PBXBuildFile; fileRef = EEDD77962DAE065F00E9ADD2 /* LSession.m */; };
 		EEDD77A02DAE067600E9ADD2 /* UNUserNotificationHelper.m in Sources */ = {isa = PBXBuildFile; fileRef = EEDD779E2DAE067600E9ADD2 /* UNUserNotificationHelper.m */; };
@@ -70,6 +71,8 @@
 		E2084FC655680ED17E131C1D /* LDownLoadOC.podspec */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; name = LDownLoadOC.podspec; path = ../LDownLoadOC.podspec; sourceTree = "<group>"; };
 		EE13BD0E309AD94000885D7C /* SceneDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SceneDelegate.h; sourceTree = "<group>"; };
 		EE13BD0F309AD94000885D7C /* SceneDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SceneDelegate.m; sourceTree = "<group>"; };
+		EE9ED731309DB300005CDC08 /* LDownloadMeta.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LDownloadMeta.h; sourceTree = "<group>"; };
+		EE9ED732309DB300005CDC08 /* LDownloadMeta.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = LDownloadMeta.m; sourceTree = "<group>"; };
 		EEDD77932DAE065F00E9ADD2 /* LFile.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LFile.h; sourceTree = "<group>"; };
 		EEDD77942DAE065F00E9ADD2 /* LFile.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = LFile.m; sourceTree = "<group>"; };
 		EEDD77952DAE065F00E9ADD2 /* LSession.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LSession.h; sourceTree = "<group>"; };
@@ -223,6 +226,8 @@
 				EEE33D212E52FE28001FCE08 /* LTaskManager.m */,
 				EEE33D232E53255D001FCE08 /* ResumedataFile.h */,
 				EEE33D242E53255D001FCE08 /* ResumedataFile.m */,
+				EE9ED731309DB300005CDC08 /* LDownloadMeta.h */,
+				EE9ED732309DB300005CDC08 /* LDownloadMeta.m */,
 			);
 			path = download;
 			sourceTree = "<group>";
@@ -404,6 +409,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				6003F59E195388D20070C39A /* LAppDelegate.m in Sources */,
+				EE9ED733309DB300005CDC08 /* LDownloadMeta.m in Sources */,
 				EEE33D222E52FE28001FCE08 /* LTaskManager.m in Sources */,
 				EEDD77A02DAE067600E9ADD2 /* UNUserNotificationHelper.m in Sources */,
 				EEDD779A2DAE065F00E9ADD2 /* LFile.m in Sources */,

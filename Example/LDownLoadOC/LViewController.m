@@ -17,6 +17,8 @@
 @interface LViewController (){
     UIProgressView *pro1;
     UIProgressView *pro2;
+    UIButton *bt1;
+    UIButton *bt2;
 }
 
 @end
@@ -29,37 +31,27 @@
     self.title = @"Demo";
     self.view.backgroundColor = [UIColor systemBackgroundColor];
     
+    CGFloat screenWidth = [UIScreen mainScreen].bounds.size.width;
     
-    UIButton *bt1 = [UIButton buttonWithType:UIButtonTypeCustom];
+    bt1 = [UIButton buttonWithType:UIButtonTypeCustom];
     bt1.frame = CGRectMake(10, 120, 50, 30);
     [bt1 setTitle:@"下载" forState:UIControlStateNormal];
     [bt1 setTitleColor:[UIColor blackColor] forState:UIControlStateNormal];
     bt1.tag = 1;
     [bt1 addTarget:self action:@selector(click:) forControlEvents:UIControlEventTouchUpInside];
     
-    UIButton *bt11 = [UIButton buttonWithType:UIButtonTypeCustom];
-    bt11.frame = CGRectMake(10, 170, 50, 30);
-    [bt11 setTitle:@"下载" forState:UIControlStateNormal];
-    [bt11 setTitleColor:[UIColor blackColor] forState:UIControlStateNormal];
-    bt11.tag = 11;
-    [bt11 addTarget:self action:@selector(click:) forControlEvents:UIControlEventTouchUpInside];
-    
-    pro1 = [[UIProgressView alloc]initWithFrame:CGRectMake(bt1.frame.origin.x+bt1.frame.size.width+10, 135, 100, 10)];
-    pro2 = [[UIProgressView alloc]initWithFrame:CGRectMake(bt11.frame.origin.x+bt11.frame.size.width+10, 185, 100, 10)];
-    
-    UIButton *bt2 = [UIButton buttonWithType:UIButtonTypeCustom];
-    bt2.frame = CGRectMake(pro1.frame.origin.x+pro1.frame.size.width+10, 120, 50, 30);
-    [bt2 setTitle:@"暂停" forState:UIControlStateNormal];
+    bt2 = [UIButton buttonWithType:UIButtonTypeCustom];
+    bt2.frame = CGRectMake(10, 170, 50, 30);
+    [bt2 setTitle:@"下载" forState:UIControlStateNormal];
     [bt2 setTitleColor:[UIColor blackColor] forState:UIControlStateNormal];
     bt2.tag = 2;
     [bt2 addTarget:self action:@selector(click:) forControlEvents:UIControlEventTouchUpInside];
     
-    UIButton *bt22 = [UIButton buttonWithType:UIButtonTypeCustom];
-    bt22.frame = CGRectMake(pro2.frame.origin.x+pro2.frame.size.width+10, 170, 50, 30);
-    [bt22 setTitle:@"暂停" forState:UIControlStateNormal];
-    [bt22 setTitleColor:[UIColor blackColor] forState:UIControlStateNormal];
-    bt22.tag = 22;
-    [bt22 addTarget:self action:@selector(click:) forControlEvents:UIControlEventTouchUpInside];
+    pro1 = [[UIProgressView alloc]initWithFrame:CGRectMake(bt1.frame.origin.x+bt1.frame.size.width+10, 135, screenWidth-20-bt1.frame.origin.x-bt1.frame.size.width, 10)];
+    pro1.progress = [LTaskManager progress:url1];
+    pro2 = [[UIProgressView alloc]initWithFrame:CGRectMake(bt2.frame.origin.x+bt2.frame.size.width+10, 185, pro1.frame.size.width, 10)];
+    pro2.progress = [LTaskManager progress:url2];
+    
     
     UIButton *bt3 = [UIButton buttonWithType:UIButtonTypeCustom];
     bt3.frame = CGRectMake(10, 220, 50, 30);
@@ -72,8 +64,6 @@
     [self.view addSubview:pro2];
     [self.view addSubview:bt1];
     [self.view addSubview:bt2];
-    [self.view addSubview:bt11];
-    [self.view addSubview:bt22];
     [self.view addSubview:bt3];
 }
 
@@ -99,9 +89,10 @@
         } failBlock:^{
             
         }];
-        
+        sender.tag = 11;
+        [sender setTitle:@"暂停" forState:UIControlStateNormal];
     }
-    if (tag == 11) {
+    if (tag == 2) {
         [ls startDown:url2 toPath:[LFile filePathWithUrl:url2 directory:@"l"] progressBlock:^(int64_t receiveByte, int64_t allByte, CGFloat progress) {
             NSLog(@"%f",progress);
             self->pro2.progress = progress;
@@ -111,18 +102,25 @@
         } failBlock:^{
             
         }];
+        sender.tag = 22;
+        [sender setTitle:@"暂停" forState:UIControlStateNormal];
+
     }
-    if (tag == 2) {
+    if (tag == 11) {
         [ls pauseDown:url1];
-        
+        sender.tag = 1;
+        [sender setTitle:@"开始" forState:UIControlStateNormal];
+
     }
     if (tag == 22) {
         [ls pauseDown:url2];
-        
+        sender.tag = 2;
+        [sender setTitle:@"开始" forState:UIControlStateNormal];
+
     }
     if (tag == 3) {
-        [ls deleteDown:url1 path:[LFile filePathWithUrl:url1 directory:@"l"]];
-        
+        [ls deleteDown:url2 path:[LFile filePathWithUrl:url2 directory:@"l"]];
+        pro2.progress = [LTaskManager progress:url2];
     }
 }
 

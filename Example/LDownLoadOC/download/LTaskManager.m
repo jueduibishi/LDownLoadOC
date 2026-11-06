@@ -7,7 +7,8 @@
 //
 
 #import "LTaskManager.h"
-
+#import "LDownloadMeta.h"
+#import "ResumedataFile.h"
 @interface LTaskManager ()
 @end
 
@@ -89,13 +90,24 @@
         [session deleteTask];
         [self.sessionDic removeObjectForKey:url];
     }else{
-        //已下载，只移除文件
+        //移除缓存
+        [ResumedataFile deleteResumeDataWithUrl:url];
+        //移除下载会话记录
+        [LFile deleteDownLoadSession:url];
+        //移除文件
         [LFile deleteFileWithPath:path];
+        //移除下载数据
+        [LDownloadMeta deleteDownloadMeta:url];
     }
+    
 }
 
 //是否正在下载
 - (BOOL)isDownloading{
     return self.sessionDic.count>0;
+}
+
++ (float)progress:(NSString *)url{
+    return [LDownloadMeta cachedProgress:url];
 }
 @end

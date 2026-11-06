@@ -10,19 +10,21 @@
 #import <CommonCrypto/CommonCrypto.h>
 #import <sys/xattr.h>
 #import "ResumedataFile.h"
-
+#import "LDownloadMeta.h"
 
 #define directoryPlist @"directoryPlist" //保存每个文件的下载位置
+
+#define kProgressSaveThreshold (512 * 1024) // 每 512KB 落盘一次，手动杀时丢的更少
 
 @interface LSession () <NSURLSessionDownloadDelegate>
 @property (nonatomic, strong) NSURLSession *downLoadSession;
 @property (nonatomic, strong) NSURLSessionDownloadTask *downLoadTask;
 @property (nonatomic, copy) NSString *url;//下载链接
 @property (nonatomic, copy) NSString *path;//下载目录
-
+@property (nonatomic, copy) NSString *urlSHA256;
 @property (nonatomic, strong) NSMutableDictionary *recevTimeDic;//接受数据的时间点，用来计算速度 //[String:NSTimeInterval]
 @property (nonatomic, strong) NSMutableDictionary *recevDataLengthDic;//接受数据的大小，用来计算速度 //[String:long long]
-
+@property (nonatomic, assign) int64_t lastSavedBytes;//上次保存的数据，用来控制缓存进度的频率
 
 
 @end
@@ -49,22 +51,27 @@
     if (self) {
         self.url = downLoadUrl;
         self.path = finalPath;
-        NSString *url256 = [LFile SHA256Encode:downLoadUrl];
+        self.urlSHA256 = [LFile SHA256Encode:downLoadUrl];
         //bundleid+url256编码作为sessionID
-        self.identifier = [[NSString alloc]initWithFormat:@"%@%@",[NSBundle mainBundle].bundleIdentifier,url256];
+        self.identifier = [[NSString alloc]initWithFormat:@"%@%@",[NSBundle mainBundle].bundleIdentifier,self.urlSHA256];
         NSURLSessionConfiguration* sessionConfig = [NSURLSessionConfiguration backgroundSessionConfigurationWithIdentifier:self.identifier];
         sessionConfig.allowsCellularAccess = YES;//是否允许蜂窝网络
         sessionConfig.sessionSendsLaunchEvents = YES;//允许中后台唤醒
         sessionConfig.timeoutIntervalForRequest = timeout;
         self.downLoadSession = [NSURLSession sessionWithConfiguration:sessionConfig
-                                                delegate:self
-                                           delegateQueue:[NSOperationQueue mainQueue]];
+                                                             delegate:self
+                                                        delegateQueue:[NSOperationQueue mainQueue]];
+        // 监听 App 终止
+                [[NSNotificationCenter defaultCenter] addObserver:self
+                                                         selector:@selector(appWillTerminate:)
+                                                             name:UIApplicationWillTerminateNotification
+                                                           object:nil];
         //启动时获取下载任务——因为didCompleteWithError有时候不会执行
         [self.downLoadSession getTasksWithCompletionHandler:^(NSArray<NSURLSessionDataTask *> * _Nonnull dataTasks, NSArray<NSURLSessionUploadTask *> * _Nonnull uploadTasks, NSArray<NSURLSessionDownloadTask *> * _Nonnull downloadTasks) {
             for (NSURLSessionDownloadTask *downloadTask in downloadTasks) {
                 //不自动下载
                 [downloadTask cancelByProducingResumeData:^(NSData * _Nullable resumeData) {
-                                    
+                    
                 }];
             }
             NSLog(@"----l----已存在%ld个未下载完成的任务",downloadTasks.count);
@@ -90,28 +97,83 @@
 }
 
 #pragma mark -
-#pragma mark - 下载等
+#pragma mark - 下载
 
 
 - (void)startTask{
     if ([LFile isExistFileWithPath:self.path]) {
-        if (self.successBlock) {
-            //已下载
-            self.successBlock();
-        }
+        //文件已存在 → 完成
+        LDownloadMeta *meta = [LDownloadMeta readDownloadMeta:self.url] ?: [[LDownloadMeta alloc] init];
+        meta.url = self.url;
+        meta.status = LDownloadStatusFinished;
+        [LDownloadMeta saveDownloadMeta:meta];
+        if (self.successBlock) self.successBlock();
+        return;
     }else{
-        NSData *resumeData =[ResumedataFile resumeData:self.url];
-        if (resumeData) {
-            self.downLoadTask = [self.downLoadSession downloadTaskWithResumeData:resumeData];
-            NSLog(@"-----l-----继续下载,%@",self.url);
-            [self.downLoadTask resume];
-        }else{
-            //新增下载
+        //文件不存在
+        LDownloadMeta *meta = [LDownloadMeta readDownloadMeta:self.url];
+        
+        if (!meta || meta.status == LDownloadStatusNone) {
             NSURLRequest *request = [NSURLRequest requestWithURL:[NSURL URLWithString:self.url]];
             self.downLoadTask = [self.downLoadSession downloadTaskWithRequest:request];
+            meta = [[LDownloadMeta alloc] init];
+            meta.url = self.url;
+            meta.urlSHA256 = self.urlSHA256;
+            meta.status = LDownloadStatusDownloading;
+            [LDownloadMeta saveDownloadMeta:meta];
             [self.downLoadTask resume];
-            NSLog(@"-----l-----开始下载,%@",self.url);
-            [LFile saveDownLoad:self.url path:self.path];
+            NSLog(@"----l----开始全新下载");
+            return;
+        }
+        
+        // 3. 已暂停 / 之前正在下载（被杀）
+        else if (meta.status == LDownloadStatusPaused ||
+                 meta.status == LDownloadStatusDownloading) {
+            
+            
+            // 尝试用 resumeData 续传
+            NSData *resumeData = [ResumedataFile resumeData:self.url];
+            if (resumeData) {
+                self.downLoadTask = [self.downLoadSession downloadTaskWithResumeData:resumeData];
+                meta.status = LDownloadStatusDownloading;
+                [LDownloadMeta saveDownloadMeta:meta];
+                [self.downLoadTask resume];
+                NSLog(@"----l----从断点恢复下载");
+            } else {
+                // resumeData 无效（手动杀 App 没存上 / tmp 被系统清理）→ 重新下载
+                NSLog(@"----l----resumeData 不可用，重新下载");
+                [ResumedataFile deleteResumeDataWithUrl:self.url];
+                NSURLRequest *request = [NSURLRequest requestWithURL:[NSURL URLWithString:self.url]];
+                self.downLoadTask = [self.downLoadSession downloadTaskWithRequest:request];
+                meta.status = LDownloadStatusDownloading;
+                meta.totalBytesWritten = 0; // 重置进度
+                [LDownloadMeta saveDownloadMeta:meta];
+                [self.downLoadTask resume];
+            }
+            return;
+        }
+        
+        // 4. 之前失败 → 重新下载
+        else  if (meta.status == LDownloadStatusFailed) {
+            [ResumedataFile deleteResumeDataWithUrl:self.url];
+            NSURLRequest *request = [NSURLRequest requestWithURL:[NSURL URLWithString:self.url]];
+            self.downLoadTask = [self.downLoadSession downloadTaskWithRequest:request];
+            meta.status = LDownloadStatusDownloading;
+            [LDownloadMeta saveDownloadMeta:meta];
+            [self.downLoadTask resume];
+            NSLog(@"----l----重新下载（上次失败）");
+            return;
+        }
+        
+        // 5. 标记完成但文件不存在 → 重新下载
+        else  if (meta.status == LDownloadStatusFinished) {
+            NSURLRequest *request = [NSURLRequest requestWithURL:[NSURL URLWithString:self.url]];
+            self.downLoadTask = [self.downLoadSession downloadTaskWithRequest:request];
+            meta.status = LDownloadStatusDownloading;
+            [LDownloadMeta saveDownloadMeta:meta];
+            [self.downLoadTask resume];
+            NSLog(@"----l----文件丢失，重新下载");
+            return;
         }
     }
     
@@ -133,16 +195,65 @@
     [LFile deleteDownLoadSession:self.url];
     //移除文件
     [LFile deleteFileWithPath:self.path];
+    //移除下载数据
+    [LDownloadMeta deleteDownloadMeta:self.url];
 }
 
 - (void)pauseTask{
-    if (self.downLoadTask) {
-        //暂停，会触发NSURLSessionDownloadDelegate
-        [self.downLoadTask cancelByProducingResumeData:^(NSData * _Nullable resumeData) {
-                    
-        }];
+    if (!self.downLoadTask) {
+        LDownloadMeta *meta = [LDownloadMeta readDownloadMeta:self.url] ?: [[LDownloadMeta alloc] init];
+        meta.url = self.url;
+        meta.status = LDownloadStatusPaused;
+        [LDownloadMeta saveDownloadMeta:meta];
+        return;
+    }
+    
+    //暂停，会触发NSURLSessionDownloadDelegate
+    [self.downLoadTask cancelByProducingResumeData:^(NSData * _Nullable resumeData) {
+        LDownloadMeta *meta = [LDownloadMeta readDownloadMeta:self.url] ?: [[LDownloadMeta alloc] init];
+        meta.url = self.url;
+        meta.status = LDownloadStatusPaused;
+        [LDownloadMeta saveDownloadMeta:meta];
+    }];
+}
+#pragma mark -
+#pragma mark - app终止监听
+- (void)appWillTerminate:(NSNotification *)notification {
+    // 只处理正在下载的任务
+    if (self.downLoadTask && self.downLoadTask.state == NSURLSessionTaskStateRunning) {
+        NSLog(@"----l----willTerminate，紧急保存");
+        [self emergencyPauseWithCompletion:nil];
     }
 }
+
+#pragma mark -
+#pragma mark -app被杀时保存进度
+
+/// 被杀时紧急保存（AppDelegate 的 applicationWillTerminate 调用）
+- (void)emergencyPauseWithCompletion:(dispatch_block_t)completion {
+    if (!self.downLoadTask) {
+        LDownloadMeta *meta = [LDownloadMeta readDownloadMeta:self.url];
+        if (meta) {
+            meta.status = LDownloadStatusPaused;
+            [LDownloadMeta saveDownloadMeta:meta];
+        }
+        if (completion) completion();
+        return;
+    }
+    
+    [self.downLoadTask cancelByProducingResumeData:^(NSData * _Nullable resumeData) {
+        if (resumeData) {
+            [ResumedataFile saveResumeData:resumeData withUrl:self.url];
+        }
+        LDownloadMeta *meta = [LDownloadMeta readDownloadMeta:self.url] ?: [[LDownloadMeta alloc] init];
+        meta.url = self.url;
+        meta.urlSHA256 = self.urlSHA256;
+        meta.status = LDownloadStatusPaused;
+        [LDownloadMeta saveDownloadMeta:meta];
+        if (completion) completion();
+    }];
+}
+
 #pragma mark -
 #pragma mark - NSURLSessionDownloadDelegate
 
@@ -154,20 +265,29 @@ didFinishDownloadingToURL:(NSURL *)location {
     NSString *locationPath = [location path];
     NSError *error;
     //移动文件到下载文件夹
-    //关闭iCloud备份
-//    [PublicAction addSkipBackupAttributeToItemAtURL:finalPath];
     [[NSFileManager defaultManager] moveItemAtPath:locationPath toPath:self.path error:&error];
     
+    LDownloadMeta *meta = [LDownloadMeta readDownloadMeta:self.url] ?: [[LDownloadMeta alloc] init];
+    meta.url = self.url;
+    meta.urlSHA256 = self.urlSHA256;
+    
     if (error == nil) {
-        
-            if (self.successBlock) {
-                self.successBlock();
-            }
-
-    }else{
-//        NSLog(@"-----l-----下载错误%@",error);
-        if (self.failBlock) {
-            self.failBlock();//移动失败
+        meta.status = LDownloadStatusFinished;
+        meta.totalBytesWritten = meta.totalBytesExpected;
+        [LDownloadMeta saveDownloadMeta:meta];
+        [ResumedataFile deleteResumeDataWithUrl:self.url];
+        //关闭iCloud备份
+        [[NSURL fileURLWithPath:self.path] setResourceValue:[NSNumber numberWithBool:YES]
+                                                     forKey:NSURLIsExcludedFromBackupKey
+                                                      error:nil];
+        if (self.successBlock){
+            self.successBlock();
+        }
+    } else {
+        meta.status = LDownloadStatusFailed;
+        [LDownloadMeta saveDownloadMeta:meta];
+        if (self.failBlock){
+            self.failBlock();
         }
     }
     
@@ -192,6 +312,20 @@ totalBytesExpectedToWrite:(int64_t)totalBytesExpectedToWrite {
     if (self.progressBlock && totalBytesExpectedToWrite != 0) {
         CGFloat progress = (CGFloat)totalBytesWritten / (CGFloat) totalBytesExpectedToWrite;
         self.progressBlock(totalBytesWritten, totalBytesExpectedToWrite,progress);
+    }
+    // 节流落盘（每 512KB）
+    if (totalBytesExpectedToWrite > 0 &&
+        (totalBytesWritten - self.lastSavedBytes >= kProgressSaveThreshold ||
+         totalBytesWritten == totalBytesExpectedToWrite)) {
+        
+        LDownloadMeta *meta = [LDownloadMeta readDownloadMeta:self.url] ?: [[LDownloadMeta alloc] init];
+        meta.url = self.url;
+        meta.urlSHA256 = self.urlSHA256;
+        meta.totalBytesWritten = totalBytesWritten;
+        meta.totalBytesExpected = totalBytesExpectedToWrite;
+        meta.status = LDownloadStatusDownloading;
+        [LDownloadMeta saveDownloadMeta:meta];
+        self.lastSavedBytes = totalBytesWritten;
     }
     if (self.speedBlock) {
         //url加密
@@ -226,7 +360,7 @@ totalBytesExpectedToWrite:(int64_t)totalBytesExpectedToWrite {
 - (void)URLSession:(NSURLSession *)session
               task:(NSURLSessionTask *)task
 didCompleteWithError:(NSError *)error {
-
+    
     if (error) {
         // check if resume data are available
         if ([error.userInfo objectForKey:NSURLSessionDownloadTaskResumeData]) {
@@ -235,7 +369,11 @@ didCompleteWithError:(NSError *)error {
             NSString *resumeName = [LFile SHA256Encode:url];
             //暂停，时间清空
             self.recevTimeDic[resumeName]=0;
-            
+            LDownloadMeta *meta = [LDownloadMeta readDownloadMeta:self.url] ?: [[LDownloadMeta alloc] init];
+            meta.url = self.url;
+            meta.urlSHA256 = self.urlSHA256;
+            meta.status = LDownloadStatusPaused;
+            [LDownloadMeta saveDownloadMeta:meta];
             NSData *resumeData = [error.userInfo objectForKey:NSURLSessionDownloadTaskResumeData];
             //通过之前保存的resumeData，获取断点的NSURLSessionTask，调用resume恢复下载
             if (resumeData) {
@@ -256,6 +394,11 @@ didCompleteWithError:(NSError *)error {
         [self.recevTimeDic removeObjectForKey:codeName];
         [self.recevDataLengthDic removeObjectForKey:codeName];
         [ResumedataFile deleteResumeDataWithUrl:task.originalRequest.URL.absoluteString];
+        LDownloadMeta *meta = [LDownloadMeta readDownloadMeta:self.url];
+        if (meta) {
+            meta.status = LDownloadStatusFinished;
+            [LDownloadMeta saveDownloadMeta:meta];
+        }
     }
 }
 ///与appdelegate的 handleEventsForBackgroundURLSession联动，必须在主线程中调用
@@ -273,13 +416,10 @@ didCompleteWithError:(NSError *)error {
 }
 
 -(void)dealloc{
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
     if (self.downLoadSession) {
         [self.downLoadSession invalidateAndCancel];
         self.downLoadSession = nil;
-    }
-    if (self.downLoadTask) {
-        [self.downLoadTask cancel];
-        self.downLoadTask = nil;
     }
     
 }

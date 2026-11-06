@@ -11,6 +11,7 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+/// 下载管理-总入口
 @interface LTaskManager : NSObject
 + (instancetype)instance;
 
@@ -49,6 +50,10 @@ NS_ASSUME_NONNULL_BEGIN
 //是否正在下载
 - (BOOL)isDownloading;
 
+
+/// 缓存的进度
+/// - Parameter url: url
++ (float)progress:(NSString *)url;
 @end
 
 NS_ASSUME_NONNULL_END
